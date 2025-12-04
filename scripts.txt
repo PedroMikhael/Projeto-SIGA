@@ -1,0 +1,150 @@
+-- ==========================================================
+-- SCRIPT COMPLETO DO BANCO DE DADOS - PROJETO SIGA
+-- ==========================================================
+
+-- 1. LIMPEZA TOTAL (Reinicia o banco do zero)
+DROP TABLE IF EXISTS REGISTRO_USO CASCADE;
+DROP TABLE IF EXISTS AVALIACAO CASCADE;
+DROP TABLE IF EXISTS MATRICULA CASCADE;
+DROP TABLE IF EXISTS TURMA CASCADE;
+DROP TABLE IF EXISTS DISCIPLINA CASCADE;
+DROP TABLE IF EXISTS ALUNO CASCADE;
+DROP TABLE IF EXISTS PROFESSOR CASCADE;
+DROP TABLE IF EXISTS CARDAPIO_DIA CASCADE;
+DROP TABLE IF EXISTS RESTAURANTE_UNIVERSITARIO CASCADE;
+DROP TABLE IF EXISTS DEPARTAMENTO CASCADE;
+DROP TABLE IF EXISTS PESSOA CASCADE;
+
+
+CREATE TABLE PESSOA (
+    cpf VARCHAR(14) PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(100),
+    data_nascimento DATE, 
+    senha VARCHAR(50) NOT NULL,
+    saldo DECIMAL(10,2) DEFAULT 15.00 -- Adicionado para o RU
+);
+
+CREATE TABLE DEPARTAMENTO (
+    cod_departamento INT PRIMARY KEY,
+    nome_departamento VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE RESTAURANTE_UNIVERSITARIO (
+    codigo_ru INT PRIMARY KEY,
+    nome VARCHAR(100),
+    capacidade INT
+);
+
+CREATE TABLE CARDAPIO_DIA (
+    id_cardapio INT PRIMARY KEY,
+    prato_principal VARCHAR(100),
+    sobremesa VARCHAR(100)
+);
+
+CREATE TABLE PROFESSOR (
+    matricula_professor INT PRIMARY KEY,
+    salario DECIMAL(10,2),
+    fk_cod_departamento INT,
+    fk_cpf VARCHAR(14) NOT NULL,
+    FOREIGN KEY (fk_cod_departamento) REFERENCES DEPARTAMENTO(cod_departamento),
+    FOREIGN KEY (fk_cpf) REFERENCES PESSOA(cpf)
+);
+
+CREATE TABLE ALUNO (
+    matricula_aluno INT PRIMARY KEY,
+    curso VARCHAR(100),
+    fk_cpf VARCHAR(14) NOT NULL,
+    FOREIGN KEY (fk_cpf) REFERENCES PESSOA(cpf)
+);
+
+CREATE TABLE DISCIPLINA (
+    cod_disciplina INT PRIMARY KEY,
+    nome_disciplina VARCHAR(100),
+    creditos INT,
+    fk_cod_departamento INT,
+    FOREIGN KEY (fk_cod_departamento) REFERENCES DEPARTAMENTO(cod_departamento)
+);
+
+CREATE TABLE TURMA (
+    cod_turma VARCHAR(10),
+    fk_cod_disciplina INT,
+    semestre VARCHAR(10),
+    horario VARCHAR(50),
+    fk_matricula_prof INT,
+    capacidade INT DEFAULT 30, -- Adicionado para controle de vagas
+    PRIMARY KEY (cod_turma, fk_cod_disciplina),
+    FOREIGN KEY (fk_cod_disciplina) REFERENCES DISCIPLINA(cod_disciplina),
+    FOREIGN KEY (fk_matricula_prof) REFERENCES PROFESSOR(matricula_professor)
+);
+
+CREATE TABLE MATRICULA (
+    fk_matricula_aluno INT,
+    fk_cod_disciplina INT,
+    fk_cod_turma VARCHAR(10),
+    frequencia DECIMAL(5,2),
+    PRIMARY KEY (fk_matricula_aluno, fk_cod_disciplina, fk_cod_turma),
+    FOREIGN KEY (fk_matricula_aluno) REFERENCES ALUNO(matricula_aluno),
+    FOREIGN KEY (fk_cod_turma, fk_cod_disciplina) REFERENCES TURMA(cod_turma, fk_cod_disciplina)
+);
+
+CREATE TABLE AVALIACAO (
+    id_avaliacao VARCHAR(10), 
+    fk_matricula_aluno INT,
+    fk_cod_disciplina INT,
+    fk_cod_turma VARCHAR(10),
+    nota DECIMAL(4,2),
+    PRIMARY KEY (id_avaliacao, fk_matricula_aluno, fk_cod_disciplina, fk_cod_turma),
+    FOREIGN KEY (fk_matricula_aluno, fk_cod_disciplina, fk_cod_turma) 
+        REFERENCES MATRICULA(fk_matricula_aluno, fk_cod_disciplina, fk_cod_turma)
+);
+
+CREATE TABLE REGISTRO_USO (
+    fk_cpf VARCHAR(14),
+    fk_codigo_ru INT,
+    data_hora TIMESTAMP, 
+    fk_id_cardapio INT NOT NULL, 
+    PRIMARY KEY (fk_cpf, fk_codigo_ru, data_hora),
+    FOREIGN KEY (fk_cpf) REFERENCES PESSOA(cpf),
+    FOREIGN KEY (fk_codigo_ru) REFERENCES RESTAURANTE_UNIVERSITARIO(codigo_ru),
+    FOREIGN KEY (fk_id_cardapio) REFERENCES CARDAPIO_DIA(id_cardapio)
+);
+
+
+
+-- Pessoas
+INSERT INTO PESSOA VALUES ('111.222.333-44', 'Carlos Silva', 'carlos@email.com', '1985-05-20', '123456', 15.00); 
+INSERT INTO PESSOA VALUES ('555.666.777-88', 'Ana Souza', 'ana@email.com', '2002-03-15', 'aluno123', 15.00); 
+INSERT INTO PESSOA VALUES ('999.888.777-66', 'Roberto Lima', 'roberto@email.com', '2001-07-10', 'senhaforte', 15.00);
+
+-- Departamentos e RU
+INSERT INTO DEPARTAMENTO VALUES (1, 'Computacao');
+INSERT INTO DEPARTAMENTO VALUES (2, 'Matematica');
+INSERT INTO RESTAURANTE_UNIVERSITARIO VALUES (1, 'RU Central', 300);
+INSERT INTO CARDAPIO_DIA VALUES (100, 'Strogonoff de Frango', 'Pudim');
+INSERT INTO CARDAPIO_DIA VALUES (101, 'Feijoada', 'Laranja');
+
+-- Professor e Alunos
+INSERT INTO PROFESSOR VALUES (1001, 8500.00, 1, '111.222.333-44');
+INSERT INTO ALUNO VALUES (202401, 'Engenharia de Software', '555.666.777-88'); -- Ana
+INSERT INTO ALUNO VALUES (202402, 'Ciencia da Computacao', '999.888.777-66');  -- Roberto
+
+-- Disciplinas e Turmas
+INSERT INTO DISCIPLINA VALUES (10, 'Banco de Dados', 4, 1);
+INSERT INTO DISCIPLINA VALUES (20, 'Calculo I', 6, 2);
+INSERT INTO TURMA VALUES ('T01', 10, '2024.2', 'Seg/Qua 08:00', 1001, 30);
+INSERT INTO TURMA VALUES ('T02', 10, '2024.2', 'Ter/Qui 10:00', 1001, 30);
+
+-- Matrículas
+INSERT INTO MATRICULA VALUES (202401, 10, 'T01', 100.0);
+INSERT INTO MATRICULA VALUES (202402, 10, 'T01', 90.0);
+
+-- Avaliações
+INSERT INTO AVALIACAO VALUES ('P1', 202401, 10, 'T01', 9.5);
+INSERT INTO AVALIACAO VALUES ('P2', 202401, 10, 'T01', 8.0);
+INSERT INTO AVALIACAO VALUES ('P1', 202402, 10, 'T01', 9.5); 
+
+-- Registros do RU
+INSERT INTO REGISTRO_USO VALUES ('555.666.777-88', 1, '2024-11-30 12:00:00', 100);
+INSERT INTO REGISTRO_USO VALUES ('999.888.777-66', 1, '2024-11-30 12:15:00', 100);
+

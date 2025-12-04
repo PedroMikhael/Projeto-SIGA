@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
-  
+
   const studentItems = [
     { title: 'Dashboard', url: '/dashboard', icon: Home },
     { title: 'Matrícula Online', url: '/dashboard/enrollment', icon: Calendar },
@@ -109,8 +109,8 @@ export function AppSidebar() {
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 mb-3">
           <Avatar>
-            <AvatarFallback className="bg-gradient-primary text-primary-foreground">
-              {user?.name.charAt(0)}
+            <AvatarFallback className="rounded-lg">
+              {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
@@ -118,8 +118,8 @@ export function AppSidebar() {
             <p className="text-xs text-sidebar-foreground/70 truncate">{user?.email}</p>
           </div>
         </div>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="w-full border-sidebar-accent-foreground/20"
           onClick={logout}
         >
