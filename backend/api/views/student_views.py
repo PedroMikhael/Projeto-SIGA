@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from api.serializers import StudentUpdateSerializer
 
 # --- SCHEMAS ---
 student_update_schema = openapi.Schema(
@@ -18,24 +19,26 @@ student_update_schema = openapi.Schema(
 
 # --- VIEWS DE ALUNO ---
 
-@swagger_auto_schema(method='put', request_body=student_update_schema)
+@swagger_auto_schema(method='put', request_body=StudentUpdateSerializer)
 @api_view(['PUT'])
 def update_student(request, matricula):
-    """
-    Atualiza dados do Aluno e Pessoa vinculada via SQL.
-    """
     data = request.data
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT fk_cpf FROM ALUNO WHERE matricula_aluno = %s", [matricula])
             row = cursor.fetchone()
-            if not row: return Response({"error": "Aluno não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            if not row:
+                return Response({"error": "Aluno não encontrado"}, status=status.HTTP_404_NOT_FOUND)
             
             cpf_aluno = row[0]
-            cursor.execute("UPDATE PESSOA SET nome=%s, email=%s, senha=%s WHERE cpf=%s", 
-                           [data.get('nome'), data.get('email'), data.get('senha'), cpf_aluno])
-            cursor.execute("UPDATE ALUNO SET curso=%s WHERE matricula_aluno=%s", 
-                           [data.get('curso'), matricula])
+            cursor.execute(
+                "UPDATE PESSOA SET nome=%s, email=%s, senha=%s WHERE cpf=%s",
+                [data.get('nome'), data.get('email'), data.get('senha'), cpf_aluno]
+            )
+            cursor.execute(
+                "UPDATE ALUNO SET curso=%s WHERE matricula_aluno=%s",
+                [data.get('curso'), matricula]
+            )
 
         return Response({"message": "Dados atualizados!"}, status=status.HTTP_200_OK)
     except Exception as e:

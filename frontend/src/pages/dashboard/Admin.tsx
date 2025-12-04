@@ -14,19 +14,12 @@ const Admin = () => {
   
   const [formData, setFormData] = useState({
     name: user?.name || '',
-    cpf: user?.cpf || '',
     email: user?.email || '',
+    senha: '',
+    confirmSenha: '',
     department: user?.department || '',
     course: user?.course || ''
   });
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast({
-      title: 'Dados atualizados com sucesso!',
-      description: 'Suas informações pessoais foram salvas.',
-    });
-  };
 
   const departments = [
     { value: 'computacao', label: 'Computação' },
@@ -37,15 +30,79 @@ const Admin = () => {
   ];
 
   const courses = [
-    { value: 'ciencia-computacao', label: 'Ciência da Computação' },
-    { value: 'engenharia-software', label: 'Engenharia de Software' },
-    { value: 'sistemas-informacao', label: 'Sistemas de Informação' },
-    { value: 'matematica', label: 'Matemática' },
-    { value: 'fisica', label: 'Física' },
-    { value: 'engenharia-civil', label: 'Engenharia Civil' },
-    { value: 'engenharia-eletrica', label: 'Engenharia Elétrica' },
-    { value: 'engenharia-mecanica', label: 'Engenharia Mecânica' }
+    { value: 'Ciencia da Computacao', label: 'Ciência da Computação' },
+    { value: 'Engenharia de Software', label: 'Engenharia de Software' },
+    { value: 'Sistemas de Informacao', label: 'Sistemas de Informação' },
+    { value: 'Analise e Desenv. de Sistemas', label: 'Análise e Desenv. de Sistemas' },
+    { value: 'Engenharia Civil', label: 'Engenharia Civil' },
+    { value: 'Matematica', label: 'Matemática' },
+    { value: 'Fisica', label: 'Física' },
+    { value: 'Direito', label: 'Direito' },
+    { value: 'Medicina', label: 'Medicina' },
+    { value: 'Enfermagem', label: 'Enfermagem' },
+    { value: 'Psicologia', label: 'Psicologia' },
+    { value: 'Administracao', label: 'Administração' },
+    { value: 'Contabilidade', label: 'Ciências Contábeis' },
+    { value: 'Pedagogia', label: 'Pedagogia' }
   ];
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (formData.senha !== formData.confirmSenha) {
+      toast({
+        title: 'Erro',
+        description: 'A senha e a confirmação da senha não coincidem.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      // Base URL do backend
+      const baseURL = 'http://127.0.0.1:8000';
+      const url =
+        user?.type === 'professor'
+          ? `${baseURL}/api/professors/${user.matricula}/update/`
+          : `${baseURL}/api/students/${user.matricula}/update/`;
+
+      const body: any = {
+        nome: formData.name,
+        email: formData.email
+      };
+
+      if (formData.senha) body.senha = formData.senha;
+
+      if (user?.type === 'professor') body.departamento = formData.department;
+      else body.curso = formData.course;
+
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        data = { error: 'Erro inesperado do servidor' };
+      }
+
+      if (!res.ok) throw new Error(data.error || 'Erro ao atualizar dados');
+
+      toast({
+        title: 'Sucesso',
+        description: 'Dados atualizados com sucesso!'
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message || 'Ocorreu um erro ao salvar',
+        variant: 'destructive'
+      });
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -68,6 +125,8 @@ const Admin = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSave} className="space-y-4">
+
+            {/* Nome */}
             <div className="space-y-2">
               <Label htmlFor="name">Nome Completo</Label>
               <Input
@@ -79,17 +138,7 @@ const Admin = () => {
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="cpf">CPF</Label>
-              <Input
-                id="cpf"
-                placeholder="000.000.000-00"
-                value={formData.cpf}
-                onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
-                required
-              />
-            </div>
-            
+            {/* Email */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -102,6 +151,31 @@ const Admin = () => {
               />
             </div>
 
+            {/* Senha */}
+            <div className="space-y-2">
+              <Label htmlFor="senha">Senha</Label>
+              <Input
+                id="senha"
+                type="password"
+                placeholder="Digite sua senha"
+                value={formData.senha}
+                onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
+              />
+            </div>
+
+            {/* Confirmação de Senha */}
+            <div className="space-y-2">
+              <Label htmlFor="confirmSenha">Confirmar Senha</Label>
+              <Input
+                id="confirmSenha"
+                type="password"
+                placeholder="Confirme sua senha"
+                value={formData.confirmSenha}
+                onChange={(e) => setFormData({ ...formData, confirmSenha: e.target.value })}
+              />
+            </div>
+
+            {/* Professor ou Aluno */}
             {user?.type === 'professor' ? (
               <div className="space-y-2">
                 <Label htmlFor="department">Departamento</Label>

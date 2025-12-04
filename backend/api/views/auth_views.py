@@ -23,6 +23,20 @@ student_register_schema = openapi.Schema(
     required=['nome', 'cpf', 'email', 'senha', 'data_nascimento', 'curso']
 )
 
+professor_request_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        'nome': openapi.Schema(type=openapi.TYPE_STRING),
+        'cpf': openapi.Schema(type=openapi.TYPE_STRING),
+        'email': openapi.Schema(type=openapi.TYPE_STRING),
+        'senha': openapi.Schema(type=openapi.TYPE_STRING),
+        'data_nascimento': openapi.Schema(type=openapi.FORMAT_DATE),
+        'departamento': openapi.Schema(type=openapi.TYPE_STRING),
+    },
+    required=['nome', 'cpf', 'email', 'senha', 'data_nascimento', 'departamento']
+)
+
+
 login_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
@@ -126,3 +140,49 @@ def login_user(request):
             "email": email_encontrado,
             "curso": curso
         }, status=status.HTTP_200_OK)
+    
+
+@swagger_auto_schema(method='post', request_body=professor_request_schema)
+@api_view(['POST'])
+def register_professor(request):
+    """
+    Rota para cadastro de professor (igual ao aluno, SQL nativo simples).
+    """
+    data = request.data
+    nome = data.get("nome")
+    cpf = data.get("cpf")
+    email = data.get("email")
+    senha = data.get("senha")
+    data_nasc = data.get("data_nascimento")
+    cod_departamento = data.get("departamento")  # deve ser INT correspondente a DEPARTAMENTO.cod_departamento
+
+    if not all([nome, cpf, email, senha, data_nasc, cod_departamento]):
+        return Response({"error": "Todos os campos são obrigatórios"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        with connection.cursor() as cursor:
+            # Checa se CPF já existe
+            cursor.execute("SELECT 1 FROM PESSOA WHERE cpf = %s", [cpf])
+            if cursor.fetchone():
+                return Response({"error": "CPF já cadastrado"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Insere na tabela PESSOA
+            cursor.execute("""
+                INSERT INTO PESSOA (cpf, nome, email, data_nascimento, senha)
+                VALUES (%s, %s, %s, %s, %s)
+            """, [cpf, nome, email, data_nasc, senha])
+
+            # Gera matrícula para professor
+            matricula_professor = int(f"{datetime.now().year}{random.randint(100,999)}")
+            salario_default = 5000.00  # valor default, você pode mudar
+
+            # Insere na tabela PROFESSOR
+            cursor.execute("""
+                INSERT INTO PROFESSOR (matricula_professor, salario, fk_cod_departamento, fk_cpf)
+                VALUES (%s, %s, %s, %s)
+            """, [matricula_professor, salario_default, cod_departamento, cpf])
+
+        return Response({"message": "Professor cadastrado com sucesso!", "matricula": matricula_professor}, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

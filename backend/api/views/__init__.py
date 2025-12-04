@@ -1,4 +1,4 @@
-from .auth_views import register_student, login_user
+from .auth_views import register_student, login_user, register_professor
 from .student_views import update_student, delete_student
 from .enrollment_views import (
     list_available_classes,
@@ -6,5 +6,6 @@ from .enrollment_views import (
     list_all_disciplines,
     search_disciplines
 )
-from .grades_views import get_student_grades
-from .restaurant_views import get_user_balance, buy_ticket
+from .grades_views import get_student_grades, get_student_history
+from .restaurant_views import get_user_balance, buy_ticket, get_cpf,get_cpf_by_matricula_tipo
+from .professor_views import update_professor
