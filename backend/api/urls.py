@@ -18,7 +18,7 @@ urlpatterns = [
     # CLASSES
     path('classes/search/', views.list_available_classes, name='list_classes'),
     path('classes/enroll/', views.enroll_student, name='enroll_student'),
-
+    path('professores/<int:matricula_professor>/alunos-excepcionais/', views.listar_alunos_excepcionais_professor, name='alunos_excepcionais_professor'),
     # DISCIPLINES
     path('disciplines/all/', views.list_all_disciplines, name='list_all_disciplines'),
 
@@ -36,6 +36,7 @@ urlpatterns = [
     path('professores/<int:matricula>/excluir-turma/<str:cod_turma>/', views.deletar_disciplina_turma),
     path('professor/<int:matricula>/delete/', views.delete_professor, name='delete_professor'),
     path('professores/<int:matricula>/reports/', views.get_professor_reports, name='professor_reports'),
+    path('professores/<int:matricula_professor>/alunos-excepcionais/', views.listar_alunos_excepcionais_professor, name='alunos_excepcionais_professor'),
 
     #turas 
     path('turma/<str:cod_turma>/<int:cod_disciplina>/alunos/', views.listar_alunos_diario),

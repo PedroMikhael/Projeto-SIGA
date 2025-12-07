@@ -1,8 +1,11 @@
 -- ==========================================================
 -- SCRIPT COMPLETO DO BANCO DE DADOS - PROJETO SIGA
 -- ==========================================================
+DROP TRIGGER IF EXISTS trigger_log_aluno_exclusao ON ALUNO;
+DROP TRIGGER IF EXISTS trigger_log_professor_exclusao ON PROFESSOR;
+DROP FUNCTION IF EXISTS salvar_aluno_excluido();
+DROP FUNCTION IF EXISTS salvar_professor_excluido();
 
--- 1. LIMPEZA TOTAL (Reinicia o banco do zero)
 DROP TABLE IF EXISTS REGISTRO_USO CASCADE;
 DROP TABLE IF EXISTS AVALIACAO CASCADE;
 DROP TABLE IF EXISTS MATRICULA CASCADE;
@@ -15,14 +18,13 @@ DROP TABLE IF EXISTS RESTAURANTE_UNIVERSITARIO CASCADE;
 DROP TABLE IF EXISTS DEPARTAMENTO CASCADE;
 DROP TABLE IF EXISTS PESSOA CASCADE;
 
-
 CREATE TABLE PESSOA (
     cpf VARCHAR(14) PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(100),
     data_nascimento DATE, 
     senha VARCHAR(50) NOT NULL,
-    saldo DECIMAL(10,2) DEFAULT 15.00 -- Adicionado para o RU
+    saldo DECIMAL(10,2) DEFAULT 15.00
 );
 
 CREATE TABLE DEPARTAMENTO (
@@ -64,7 +66,7 @@ CREATE TABLE DISCIPLINA (
     creditos INT,
     fk_cod_departamento INT,
     fk_matricula_professor INT,
-    FOREING KEY (fk_matricula_professor) REFERENCES PROFESSOR(matricula_professor),
+    FOREIGN KEY (fk_matricula_professor) REFERENCES PROFESSOR(matricula_professor),
     FOREIGN KEY (fk_cod_departamento) REFERENCES DEPARTAMENTO(cod_departamento)
 );
 
@@ -74,7 +76,7 @@ CREATE TABLE TURMA (
     semestre VARCHAR(10),
     horario VARCHAR(50),
     fk_matricula_prof INT,
-    capacidade INT DEFAULT 30, -- Adicionado para controle de vagas
+    capacidade INT DEFAULT 30,
     PRIMARY KEY (cod_turma, fk_cod_disciplina),
     FOREIGN KEY (fk_cod_disciplina) REFERENCES DISCIPLINA(cod_disciplina),
     FOREIGN KEY (fk_matricula_prof) REFERENCES PROFESSOR(matricula_professor)
@@ -112,15 +114,15 @@ CREATE TABLE REGISTRO_USO (
     FOREIGN KEY (fk_id_cardapio) REFERENCES CARDAPIO_DIA(id_cardapio)
 );
 
+CREATE TABLE PESSOAS_EXCLUIDAS (
+    id SERIAL PRIMARY KEY,
+    matricula VARCHAR(20),
+    cpf VARCHAR(14),
+    tipo VARCHAR(50),
+    nome VARCHAR(100),
+    data_exclusao TIMESTAMP DEFAULT NOW()
+);
 
-
--- Pessoas
-INSERT INTO PESSOA VALUES ('111.222.333-44', 'Carlos Silva', 'carlos@email.com', '1985-05-20', '123456', 15.00); 
-INSERT INTO PESSOA VALUES ('555.666.777-88', 'Ana Souza', 'ana@email.com', '2002-03-15', 'aluno123', 15.00); 
-INSERT INTO PESSOA VALUES ('999.888.777-66', 'Roberto Lima', 'roberto@email.com', '2001-07-10', 'senhaforte', 15.00);
-INSERT INTO PESSOA VALUES ('222.222.222-22', 'Pedro Souza', 'Pedro@email.com', '2001-07-10', 'senhaforte', 15.00);
-
--- Departamentos e RU
 INSERT INTO DEPARTAMENTO VALUES (1, 'Computacao');
 INSERT INTO DEPARTAMENTO VALUES (2, 'Matematica');
 INSERT INTO DEPARTAMENTO VALUES (3, 'Fisica');
@@ -133,33 +135,199 @@ INSERT INTO DEPARTAMENTO VALUES (9, 'Biologia');
 INSERT INTO DEPARTAMENTO VALUES (10, 'Quimica');
 
 INSERT INTO RESTAURANTE_UNIVERSITARIO VALUES (1, 'RU Central', 300);
-INSERT INTO CARDAPIO_DIA VALUES (100, 'Strogonoff de Frango', 'Pudim');
-INSERT INTO CARDAPIO_DIA VALUES (101, 'Feijoada', 'Laranja');
 
--- Professor e Alunos
-INSERT INTO PROFESSOR VALUES (1001, 8500.00, 1, '111.222.333-44');
-INSERT INTO PROFESSOR VALUES (1002, 8500.00, 2, '222.222.222-22');
+INSERT INTO CARDAPIO_DIA VALUES (100, 'Frango Grelhado com Arroz Integral', 'Pudim');
+INSERT INTO CARDAPIO_DIA VALUES (101, 'Carne de Panela com Batatas', 'Gelatina');
+INSERT INTO CARDAPIO_DIA VALUES (102, 'Peixe Assado com Farofa', 'Mousse');
+INSERT INTO CARDAPIO_DIA VALUES (103, 'Strogonoff de Frango', 'Doce de Leite');
+INSERT INTO CARDAPIO_DIA VALUES (104, 'Feijoada Completa', 'Laranja');
+
+INSERT INTO PESSOA VALUES ('111.111.111-11', 'Dr. Alan Turing', 'alan@comp.br', '1950-01-01', 'senha123', 50.00);
+INSERT INTO PROFESSOR VALUES (1001, 7500.00, 1, '111.111.111-11');
+
+INSERT INTO PESSOA VALUES ('222.222.222-22', 'Profa. Emmy Noether', 'emmy@mat.br', '1970-05-15', 'senha123', 15.00);
+INSERT INTO PROFESSOR VALUES (1002, 6000.00, 2, '222.222.222-22');
+
+INSERT INTO PESSOA VALUES ('333.333.333-33', 'Dr. Francis Crick', 'francis@bio.br', '1960-03-20', 'senha123', 15.00);
+INSERT INTO PROFESSOR VALUES (1003, 5500.00, 9, '333.333.333-33');
+
+INSERT INTO DISCIPLINA VALUES (501, 'Inteligencia Artificial', 4, 1, 1001);
+INSERT INTO TURMA VALUES ('T01', 501, '2025.1', '24TAB', 1001, 30);
+
+INSERT INTO DISCIPLINA VALUES (502, 'Redes de Computadores', 4, 1, 1001);
+INSERT INTO TURMA VALUES ('T02', 502, '2025.1', '35ACD', 1001, 30);
+
+INSERT INTO DISCIPLINA VALUES (601, 'Calculo I', 6, 2, 1002);
+INSERT INTO TURMA VALUES ('T01', 601, '2025.1', '24CAD', 1002, 30);
+
+INSERT INTO DISCIPLINA VALUES (503, 'Algoritmos e Estrutura de Dados', 4, 1, 1002);
+INSERT INTO TURMA VALUES ('T03', 503, '2025.1', '35BEF', 1002, 30);
+
+INSERT INTO PESSOA VALUES ('444.444.444-44', 'Grace Hopper', 'grace@aluno.com', '2000-12-09', 'senhaaluno', 10.00);
+INSERT INTO ALUNO VALUES (202501, 'Ciencia da Computacao', '444.444.444-44');
+
+INSERT INTO PESSOA VALUES ('555.555.555-55', 'Linus Torvalds', 'linus@aluno.com', '1998-05-05', 'senhaaluno', 20.00);
+INSERT INTO ALUNO VALUES (202502, 'Ciencia da Computacao', '555.555.555-55');
+
+INSERT INTO PESSOA VALUES ('666.666.666-66', 'Ada Lovelace', 'ada@aluno.com', '2001-10-10', 'senhaaluno', 15.00);
+INSERT INTO ALUNO VALUES (202503, 'Matematica', '666.666.666-66');
+
+INSERT INTO PESSOA VALUES ('777.777.777-77', 'Donald Knuth', 'donald@aluno.com', '2002-03-22', 'senhaaluno', 30.00);
+INSERT INTO ALUNO VALUES (202504, 'Ciencia da Computacao', '777.777.777-77');
+
+INSERT INTO PESSOA VALUES ('888.888.888-88', 'Marie Curie', 'marie@aluno.com', '1999-07-04', 'senhaaluno', 15.00);
+INSERT INTO ALUNO VALUES (202505, 'Fisica', '888.888.888-88');
+
+INSERT INTO MATRICULA VALUES (202501, 501, 'T01', 100.00);
+INSERT INTO MATRICULA VALUES (202501, 502, 'T02', 95.00);
+INSERT INTO MATRICULA VALUES (202501, 601, 'T01', 90.00);
+INSERT INTO MATRICULA VALUES (202502, 501, 'T01', 80.00);
+INSERT INTO MATRICULA VALUES (202502, 601, 'T01', 85.00);
+INSERT INTO MATRICULA VALUES (202503, 501, 'T01', 70.00);
+INSERT INTO MATRICULA VALUES (202503, 502, 'T02', 74.00);
+INSERT INTO MATRICULA VALUES (202504, 502, 'T02', 100.00);
+INSERT INTO MATRICULA VALUES (202505, 503, 'T03', 100.00);
+
+INSERT INTO AVALIACAO VALUES ('N1', 202501, 501, 'T01', 9.5);
+INSERT INTO AVALIACAO VALUES ('N2', 202501, 501, 'T01', 10.0);
+
+INSERT INTO AVALIACAO VALUES ('N1', 202502, 501, 'T01', 8.0);
+INSERT INTO AVALIACAO VALUES ('N2', 202502, 501, 'T01', 8.0);
+
+INSERT INTO AVALIACAO VALUES ('N1', 202503, 501, 'T01', 3.0);
+INSERT INTO AVALIACAO VALUES ('N2', 202503, 501, 'T01', 4.0);
+
+INSERT INTO AVALIACAO VALUES ('N1', 202501, 502, 'T02', 9.0);
+INSERT INTO AVALIACAO VALUES ('N2', 202501, 502, 'T02', 9.0);
+
+INSERT INTO AVALIACAO VALUES ('N1', 202503, 502, 'T02', 6.0);
+
+INSERT INTO AVALIACAO VALUES ('N1', 202504, 502, 'T02', 8.5);
+INSERT INTO AVALIACAO VALUES ('N2', 202504, 502, 'T02', 8.5);
+
+INSERT INTO AVALIACAO VALUES ('N1', 202505, 503, 'T03', 10.0);
+INSERT INTO AVALIACAO VALUES ('N2', 202505, 503, 'T03', 10.0);
+
+INSERT INTO AVALIACAO VALUES ('N1', 202502, 601, 'T01', 7.5);
+INSERT INTO AVALIACAO VALUES ('N2', 202502, 601, 'T01', 7.0);  
+INSERT INTO AVALIACAO VALUES ('N1', 202501, 601, 'T01', 7.5);
+INSERT INTO AVALIACAO VALUES ('N2', 202501, 601, 'T01', 7.5);
+
+CREATE OR REPLACE FUNCTION salvar_aluno_excluido()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_nome_pessoa VARCHAR(100);
+BEGIN
+    SELECT nome INTO v_nome_pessoa 
+    FROM PESSOA 
+    WHERE cpf = OLD.fk_cpf; 
+
+    INSERT INTO PESSOAS_EXCLUIDAS (matricula, cpf, tipo, nome)
+    VALUES (
+        OLD.matricula_aluno::VARCHAR, 
+        OLD.fk_cpf,                   
+        'Aluno',
+        v_nome_pessoa                 
+    );
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION salvar_professor_excluido()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_nome_pessoa VARCHAR(100);
+BEGIN
+    SELECT nome INTO v_nome_pessoa 
+    FROM PESSOA 
+    WHERE cpf = OLD.fk_cpf; 
+
+    INSERT INTO PESSOAS_EXCLUIDAS (matricula, cpf, tipo, nome)
+    VALUES (
+        OLD.matricula_professor::VARCHAR, 
+        OLD.fk_cpf,                       
+        'Professor',
+        v_nome_pessoa
+    );
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_log_aluno_exclusao
+AFTER DELETE ON ALUNO
+FOR EACH ROW
+EXECUTE FUNCTION salvar_aluno_excluido();
+
+CREATE TRIGGER trigger_log_professor_exclusao
+AFTER DELETE ON PROFESSOR
+FOR EACH ROW
+EXECUTE FUNCTION salvar_professor_excluido();
+
+--- ==========================================================
+-- 4. CONSULTAS AVANÇADAS (REQUISITOS FUNCIONAIS)
+-- ==========================================================
+
+-- 4.1. Consulta com Quantificador ALL (Alunos Excepcionais)
+-- Lista a maior nota de um aluno APENAS SE ela for maior ou igual a TODAS as outras notas da mesma turma.
+-- Utiliza uma CTE (Common Table Expression) para filtrar e depois agrupa para limpar duplicatas.
+
+WITH QuantifiedResults AS (
+    SELECT
+        G1.fk_matricula_aluno AS matricula_aluno,
+        G1.fk_cod_disciplina AS cod_disciplina,
+        G1.nota AS nota_obtida
+    FROM AVALIACAO G1
+    JOIN TURMA T ON 
+        T.fk_cod_disciplina = G1.fk_cod_disciplina AND 
+        T.cod_turma = G1.fk_cod_turma
+    
+    WHERE T.fk_matricula_prof = %s 
+    
+    AND G1.nota >= ALL ( 
+        SELECT G2.nota
+        FROM AVALIACAO G2
+        WHERE G2.fk_cod_disciplina = G1.fk_cod_disciplina 
+          AND G2.fk_matricula_aluno != G1.fk_matricula_aluno
+    )
+)
+-- Agrupamento para limpar duplicatas (pega a maior nota se o aluno tiver N1 e N2 altas)
+SELECT
+    P.nome,
+    QR.matricula_aluno,
+    MAX(QR.nota_obtida) AS melhor_nota_qualificada,
+    D.nome_disciplina
+FROM QuantifiedResults QR
+JOIN ALUNO A ON A.matricula_aluno = QR.matricula_aluno
+JOIN PESSOA P ON P.cpf = A.fk_cpf
+JOIN DISCIPLINA D ON D.cod_disciplina = QR.cod_disciplina
+GROUP BY P.nome, QR.matricula_aluno, D.nome_disciplina
+ORDER BY melhor_nota_qualificada DESC;
 
 
-INSERT INTO ALUNO VALUES (202401, 'Engenharia de Software', '555.666.777-88'); -- Ana
-INSERT INTO ALUNO VALUES (202402, 'Ciencia da Computacao', '999.888.777-66');  -- Roberto
+-- 4.2. Consulta com GROUP BY e HAVING
+-- Lista a média geral das disciplinas, mas APENAS aquelas que possuem notas lançadas.
+SELECT 
+    D.nome_disciplina,
+    AVG(AV.nota) as media_geral
+FROM DISCIPLINA D
+JOIN TURMA T ON T.fk_cod_disciplina = D.cod_disciplina
+LEFT JOIN AVALIACAO AV ON AV.fk_cod_disciplina = D.cod_disciplina
+GROUP BY D.nome_disciplina
+HAVING MAX(AV.nota) IS NOT NULL;
 
--- Disciplinas e Turmas
-INSERT INTO DISCIPLINA VALUES (10, 'Banco de Dados', 4, 1, 1001);
-INSERT INTO DISCIPLINA VALUES (20, 'Calculo I', 6, 2, 1002);
-INSERT INTO TURMA VALUES ('T01', 10, '2024.2', 'Seg/Qua 08:00', 1001, 30);
-INSERT INTO TURMA VALUES ('T02', 10, '2024.2', 'Ter/Qui 10:00', 1002, 30);
 
--- Matrículas
-INSERT INTO MATRICULA VALUES (202401, 10, 'T01', 100.0);
-INSERT INTO MATRICULA VALUES (202402, 10, 'T01', 90.0);
-
--- Avaliações
-INSERT INTO AVALIACAO VALUES ('P1', 202401, 10, 'T01', 9.5);
-INSERT INTO AVALIACAO VALUES ('P2', 202401, 10, 'T01', 8.0);
-INSERT INTO AVALIACAO VALUES ('P1', 202402, 10, 'T01', 9.5); 
-
--- Registros do RU
-INSERT INTO REGISTRO_USO VALUES ('555.666.777-88', 1, '2024-11-30 12:00:00', 100);
-INSERT INTO REGISTRO_USO VALUES ('999.888.777-66', 1, '2024-11-30 12:15:00', 100);
+-- 4.3. Consulta com Múltiplos JOINs (Boletim Geral)
+-- Relatório completo cruzando 5 tabelas para gerar a média final e frequência.
+SELECT 
+    P.nome,
+    D.nome_disciplina,
+    M.frequencia,
+    AVG(AV.nota) as media_final
+FROM MATRICULA M
+JOIN ALUNO A ON M.fk_matricula_aluno = A.matricula_aluno
+JOIN PESSOA P ON A.fk_cpf = P.cpf
+JOIN DISCIPLINA D ON M.fk_cod_disciplina = D.cod_disciplina
+JOIN AVALIACAO AV ON M.fk_matricula_aluno = AV.fk_matricula_aluno
+GROUP BY P.nome, D.nome_disciplina, M.frequencia
+ORDER BY P.nome ASC;
 

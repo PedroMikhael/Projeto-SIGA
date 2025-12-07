@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart3, TrendingUp, Users, Award, BookOpen, Loader2 } from 'lucide-react';
+import { TrendingUp, Users, Award, BookOpen, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -26,6 +26,12 @@ interface DashboardData {
       average: number;
     }[];
   }[];
+  exceptional_students: {
+    name: string;
+    matricula: number;
+    nota_obtida: number;
+    nome_disciplina: string;
+  }[];
 }
 
 const Reports = () => {
@@ -39,31 +45,50 @@ const Reports = () => {
 
     const fetchReports = async () => {
       try {
-        const res = await fetch(`http://127.0.0.1:8000/api/professores/${user.matricula}/reports/`);
-        
-        if (res.ok) {
-          const result = await res.json();
-          setData(result);
-        } else {
-          throw new Error('Falha ao carregar relatórios');
+        // Faz duas chamadas simultâneas: relatório principal e quantificadores (excepcionais)
+        const [resMain, resExceptional] = await Promise.all([
+          fetch(`http://127.0.0.1:8000/api/professores/${user.matricula}/reports/`),
+          fetch(`http://127.0.0.1:8000/api/professores/${user.matricula}/alunos-excepcionais/`),
+        ]);
+
+        if (!resMain.ok) {
+          throw new Error('Falha ao carregar relatórios principais');
         }
+
+        const resultMain = await resMain.json();
+
+        let resultExceptional: any[] = [];
+        if (resExceptional.ok) {
+          resultExceptional = await resExceptional.json();
+        } else {
+          console.error('Falha ao carregar dados do Quantificador ALL/ANY.');
+        }
+
+        setData({
+          ...resultMain,
+          exceptional_students: resultExceptional,
+        });
       } catch (error) {
         console.error(error);
-        toast({ title: 'Erro', description: 'Não foi possível carregar os dados estatísticos.', variant: 'destructive' });
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível carregar os dados estatísticos. Verifique o console.',
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchReports();
-  }, [user]);
+  }, [user, toast]);
 
   if (loading) {
     return (
-        <div className="flex h-[80vh] items-center justify-center flex-col gap-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-muted-foreground">Calculando estatísticas...</p>
-        </div>
+      <div className="flex h-[80vh] items-center justify-center flex-col gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-muted-foreground">Calculando estatísticas...</p>
+      </div>
     );
   }
 
@@ -107,7 +132,7 @@ const Reports = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.kpis.approval_rate}%</div>
-            <p className="text-xs text-muted-foreground">Alunos com média &ge; 7.0</p>
+            <p className="text-xs text-muted-foreground">Alunos com média ≥ 7.0</p>
           </CardContent>
         </Card>
 
@@ -149,26 +174,25 @@ const Reports = () => {
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-24 bg-muted rounded-full h-2.5 overflow-hidden">
-                          <div 
-                            className={`h-2.5 rounded-full transition-all ${
-                                item.average >= 7 ? 'bg-green-500' : item.average >= 4 ? 'bg-yellow-500' : 'bg-red-500'
-                            }`}
+                          <div
+                            className={`h-2.5 rounded-full transition-all ${item.average >= 7 ? 'bg-green-500' : item.average >= 4 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
                             style={{ width: `${Math.min((item.average / 10) * 100, 100)}%` }}
                           />
                         </div>
                         <span className="text-xs text-muted-foreground w-8 text-left">
-                            {((item.average / 10) * 100).toFixed(0)}%
+                          {((item.average / 10) * 100).toFixed(0)}%
                         </span>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
                 {data.discipline_averages.length === 0 && (
-                    <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
-                            Nenhuma turma com notas lançadas ainda.
-                        </TableCell>
-                    </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                      Nenhuma turma com notas lançadas ainda.
+                    </TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
@@ -179,41 +203,89 @@ const Reports = () => {
       {/* TOP ALUNOS */}
       {data.top_students.length > 0 && (
         <Card className="shadow-card border-none bg-transparent shadow-none">
-            <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Destaques Acadêmicos</h2>
-                <p className="text-sm text-gray-500">Top 3 alunos com melhores médias por disciplina</p>
-            </div>
-            
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-gray-800">Destaques Acadêmicos</h2>
+            <p className="text-sm text-gray-500">Top 3 alunos com melhores médias por disciplina</p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {data.top_students.map((item, index) => (
-                <Card key={index} className="shadow-hover hover:scale-[1.01] transition-transform">
+              <Card key={index} className="shadow-hover hover:scale-[1.01] transition-transform">
                 <CardHeader className="pb-3 border-b bg-slate-50/50">
-                    <CardTitle className="text-base font-semibold text-primary truncate" title={item.discipline}>
-                        {item.discipline}
-                    </CardTitle>
+                  <CardTitle className="text-base font-semibold text-primary truncate" title={item.discipline}>
+                    {item.discipline}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
-                    {item.students.map((student, studentIndex) => (
+                  {item.students.map((student, studentIndex) => (
                     <div key={studentIndex} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${
-                            studentIndex === 0 ? 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-200' : 
-                            studentIndex === 1 ? 'bg-slate-100 text-slate-700' : 'bg-orange-50 text-orange-800'
-                        }`}>
-                            {studentIndex + 1}º
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${studentIndex === 0
+                              ? 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-200'
+                              : studentIndex === 1
+                                ? 'bg-slate-100 text-slate-700'
+                                : 'bg-orange-50 text-orange-800'
+                            }`}
+                        >
+                          {studentIndex + 1}º
                         </div>
-                        <p className="font-medium text-sm truncate max-w-[140px]" title={student.name}>{student.name}</p>
-                        </div>
-                        <Badge variant="secondary" className={`font-mono ${studentIndex === 0 ? 'bg-green-50 text-green-700 hover:bg-green-100' : ''}`}>
+                        <p className="font-medium text-sm truncate max-w-[140px]" title={student.name}>
+                          {student.name}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className={`font-mono ${studentIndex === 0 ? 'bg-green-50 text-green-700 hover:bg-green-100' : ''
+                          }`}
+                      >
                         {student.average.toFixed(1)}
-                        </Badge>
+                      </Badge>
                     </div>
-                    ))}
-                    {item.students.length === 0 && <p className="text-xs text-muted-foreground text-center">Sem notas lançadas</p>}
+                  ))}
+                  {item.students.length === 0 && <p className="text-xs text-muted-foreground text-center">Sem notas lançadas</p>}
                 </CardContent>
-                </Card>
+              </Card>
             ))}
-            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 🏆 ALUNOS EXCEPCIONAIS (QUANTIFICADOR ALL) 🏆 */}
+      {data.exceptional_students && data.exceptional_students.length > 0 && (
+        <Card className="shadow-card border-l-4 border-l-red-600">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2 text-red-700">
+              <Award className="h-5 w-5" /> Destaques Absolutos de suas Turmas
+            </CardTitle>
+            <CardDescription>
+              Alunos com notas que superam todas as outras notas de sua respectiva disciplina
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-red-50/50">
+                  <TableHead>Aluno</TableHead>
+                  <TableHead>Matrícula</TableHead>
+                  <TableHead>Disciplina</TableHead>
+                  <TableHead className="text-right">Nota Absoluta</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.exceptional_students.map((student, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-semibold">{student.name}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{student.matricula}</TableCell>
+                    <TableCell>{student.nome_disciplina}</TableCell>
+                    <TableCell className="text-right font-bold text-red-700">
+                      {student.nota_obtida.toFixed(1)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
         </Card>
       )}
     </div>

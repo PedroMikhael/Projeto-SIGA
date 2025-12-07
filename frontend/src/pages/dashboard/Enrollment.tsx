@@ -3,8 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { Search, BookOpen, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -130,15 +128,6 @@ const Enrollment = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 h-12 text-lg"
               />
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="case-insensitive"
-                checked={caseInsensitive}
-                onCheckedChange={(v) => setCaseInsensitive(v as boolean)}
-              />
-              <Label htmlFor="case-insensitive">Ignorar maiúsculas/minúsculas</Label>
             </div>
           </div>
         </CardContent>

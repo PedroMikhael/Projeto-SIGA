@@ -304,7 +304,7 @@ def delete_professor(request, matricula):
 def get_professor_reports(request, matricula):
     try:
         with connection.cursor() as cursor:
-            # Busca TODOS os alunos, disciplinas e notas desse professor
+            # Consulta SQL FINAL que gera o dashboard do professor
             sql = """
                 SELECT 
                     D.nome_disciplina,
@@ -318,41 +318,38 @@ def get_professor_reports(request, matricula):
                 JOIN ALUNO A ON M.fk_matricula_aluno = A.matricula_aluno
                 JOIN PESSOA P ON A.fk_cpf = P.cpf
                 LEFT JOIN AVALIACAO AV ON M.fk_matricula_aluno = AV.fk_matricula_aluno 
-                                      AND M.fk_cod_disciplina = AV.fk_cod_disciplina
-                                      AND M.fk_cod_turma = AV.fk_cod_turma
+                    AND M.fk_cod_disciplina = AV.fk_cod_disciplina
+                    AND M.fk_cod_turma = AV.fk_cod_turma
                 WHERE T.fk_matricula_prof = %s
                 GROUP BY D.nome_disciplina, P.nome, m.fk_matricula_aluno
+                
+                HAVING MAX(AV.nota) IS NOT NULL 
             """
             cursor.execute(sql, [matricula])
             rows = cursor.fetchall()
 
-        # Estruturas para processamento
-        disciplines_data = {} # { 'NomeDisc': { total_grades: 0, count: 0, students: [] } }
+        # Estruturas para processamento (restante do código que gera o JSON para o dashboard)
+        disciplines_data = {} 
         total_students_set = set()
         global_sum_grades = 0
         global_grade_count = 0
         approved_count = 0
-        total_valid_students = 0 # Alunos que já tem nota para contar na taxa
+        total_valid_students = 0
 
         for row in rows:
             disc_name, student_name, student_id, n1, n2 = row
             total_students_set.add(student_id)
 
-            # Inicializa disciplina se não existir
             if disc_name not in disciplines_data:
                 disciplines_data[disc_name] = {
                     'name': disc_name,
                     'sum_grades': 0,
                     'count_grades': 0,
-                    'students': [] # Lista de {name, average}
+                    'students': []
                 }
 
-            # Calcula média do aluno
             val_n1 = float(n1) if n1 is not None else 0.0
             val_n2 = float(n2) if n2 is not None else 0.0
-            
-            # Consideramos que o aluno "participa" da estatística se tiver pelo menos uma nota ou se o semestre acabou
-            # Aqui vamos calcular a média simples
             average = (val_n1 + val_n2) / 2
 
             # Adiciona aos dados da disciplina
@@ -394,7 +391,6 @@ def get_professor_reports(request, matricula):
             })
 
             # 3. Top 3 Alunos
-            # Ordena alunos pela média descrescente
             sorted_students = sorted(data['students'], key=lambda x: x['average'], reverse=True)
             top_3 = sorted_students[:3]
             
@@ -411,7 +407,8 @@ def get_professor_reports(request, matricula):
                 "active_disciplines": active_disciplines
             },
             "discipline_averages": discipline_averages,
-            "top_students": top_students_by_discipline
+            "top_students": top_students_by_discipline,
+            # NOTA: O campo exceptional_students é preenchido pela chamada separada no React
         }
 
         return Response(response_data, 200)
