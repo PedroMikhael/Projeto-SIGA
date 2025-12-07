@@ -43,39 +43,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loadStorageData();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      const payload = { email, senha: password };
-      const response = await fetch('http://127.0.0.1:8000/api/auth/login/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+ const login = async (email: string, password: string): Promise<boolean> => {
+  try {
+    const payload = { email, senha: password };
+    const response = await fetch('http://127.0.0.1:8000/api/auth/login/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-      if (!response.ok) return false;
+    if (!response.ok) return false;
 
-      const data = await response.json();
-      const token = data.access || data.access_token || data.token;
-      localStorage.setItem('token', token);
+    const data = await response.json();
+    const token = data.access;
 
-      let userData: User = {
-        email,
-        name: data.user?.nome || data.user?.name || 'Aluno',
-        type: data.user?.type || 'student',
-        id: data.user?.id || data.user?.pk,
-        matricula: data.user?.matricula || ''
-      };
+    localStorage.setItem('token', token);
 
-      localStorage.setItem('user_data', JSON.stringify(userData));
-      setIsAuthenticated(true);
-      setUser(userData);
+    let userData: User = {
+      email: data.email,
+      name: data.nome,
+      type: data.type,
+      id: data.matricula,
+      matricula: data.matricula
+    };
 
-      return true;
-    } catch (error) {
-      console.error("Erro de conexão:", error);
-      return false;
-    }
-  };
+    localStorage.setItem('user_data', JSON.stringify(userData));
+    setIsAuthenticated(true);
+    setUser(userData);
+
+    return true;
+  } catch (error) {
+    console.error("Erro de conexão:", error);
+    return false;
+  }
+};
+
 
   const register = async (userData: any, type: 'student' | 'professor' = 'student'): Promise<boolean> => {
     try {

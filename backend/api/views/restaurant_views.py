@@ -11,7 +11,7 @@ ticket_purchase_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
         'matricula': openapi.Schema(type=openapi.TYPE_STRING, description="Matrícula do usuário"),
-        'tipo': openapi.Schema(type=openapi.TYPE_STRING, description='Tipo de usuário: "student" ou "teacher"'),
+        'tipo': openapi.Schema(type=openapi.TYPE_STRING, description='Tipo de usuário: "student" ou "professor"'),
         'codigo_ru': openapi.Schema(type=openapi.TYPE_INTEGER),
         'id_cardapio': openapi.Schema(type=openapi.TYPE_INTEGER),
     },
@@ -25,21 +25,26 @@ def get_cpf_by_matricula_tipo(matricula, tipo):
     Retorna None se não encontrado ou tipo inválido.
     """
     with connection.cursor() as cursor:
-        if tipo.lower() == 'student':
+        tipo_limpo = tipo.lower()
+        
+        # Ajustado para aceitar 'professor' (que vem do front) ou 'teacher'
+        if tipo_limpo == 'student':
             cursor.execute("SELECT fk_cpf FROM ALUNO WHERE matricula_aluno = %s", [matricula])
-        elif tipo.lower() == 'teacher':
+        elif tipo_limpo in ['professor', 'teacher']:
             cursor.execute("SELECT fk_cpf FROM PROFESSOR WHERE matricula_professor = %s", [matricula])
         else:
             return None
+            
         row = cursor.fetchone()
         return row[0] if row else None
 
 # --- VIEWS ---
+
 @swagger_auto_schema(
     method='get',
     manual_parameters=[
         openapi.Parameter('matricula', openapi.IN_QUERY, description="Matrícula do usuário", type=openapi.TYPE_STRING, required=True),
-        openapi.Parameter('tipo', openapi.IN_QUERY, description='Tipo de usuário: "student" ou "teacher"', type=openapi.TYPE_STRING, required=True)
+        openapi.Parameter('tipo', openapi.IN_QUERY, description='Tipo de usuário: "student" ou "professor"', type=openapi.TYPE_STRING, required=True)
     ]
 )
 @api_view(['GET'])
@@ -54,17 +59,18 @@ def get_user_balance(request):
         return Response({"error": "Parâmetros matricula e tipo são obrigatórios"}, status=status.HTTP_400_BAD_REQUEST)
 
     cpf = get_cpf_by_matricula_tipo(matricula, tipo)
+    
     if not cpf:
         return Response({"error": "Usuário não encontrado ou tipo inválido"}, status=status.HTTP_404_NOT_FOUND)
 
     try:
         with connection.cursor() as cursor:
-            # Saldo
+            # 1. Buscar Saldo na tabela PESSOA
             cursor.execute("SELECT saldo FROM PESSOA WHERE cpf = %s", [cpf])
             row = cursor.fetchone()
-            saldo = float(row[0]) if row else 0.0
+            saldo = float(row[0]) if row and row[0] is not None else 0.0
 
-            # Últimos tickets
+            # 2. Buscar Últimos tickets
             cursor.execute("""
                 SELECT R.data_hora, RU.nome, C.prato_principal
                 FROM REGISTRO_USO R
@@ -74,7 +80,14 @@ def get_user_balance(request):
                 ORDER BY R.data_hora DESC
                 LIMIT 5
             """, [cpf])
-            tickets = [{"data": t[0], "restaurante": t[1], "prato": t[2]} for t in cursor.fetchall()]
+            
+            tickets = []
+            for t in cursor.fetchall():
+                tickets.append({
+                    "data": t[0], 
+                    "restaurante": t[1], 
+                    "prato": t[2]
+                })
 
         return Response({"cpf": cpf, "saldo": saldo, "historico_tickets": tickets}, status=status.HTTP_200_OK)
 
@@ -100,23 +113,25 @@ def buy_ticket(request):
     if not cpf:
         return Response({"error": "Usuário não encontrado ou tipo inválido"}, status=status.HTTP_404_NOT_FOUND)
 
+    # PREÇO FIXO
     PRECO_TICKET = 1.00
 
     try:
         with connection.cursor() as cursor:
-            # Verificar saldo
+            # 1. Verificar saldo atual
             cursor.execute("SELECT saldo FROM PESSOA WHERE cpf = %s", [cpf])
             row = cursor.fetchone()
-            saldo_atual = float(row[0]) if row else 0.0
+            saldo_atual = float(row[0]) if row and row[0] is not None else 0.0
 
             if saldo_atual < PRECO_TICKET:
-                return Response({"error": "Saldo insuficiente!"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": f"Saldo insuficiente! Necessário R$ {PRECO_TICKET:.2f}"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Atualizar saldo e registrar ticket
+            # 2. Atualizar saldo e registrar ticket
             novo_saldo = saldo_atual - PRECO_TICKET
             data_hora_atual = datetime.now()
 
             cursor.execute("UPDATE PESSOA SET saldo = %s WHERE cpf = %s", [novo_saldo, cpf])
+            
             cursor.execute("""
                 INSERT INTO REGISTRO_USO (fk_cpf, fk_codigo_ru, fk_id_cardapio, data_hora)
                 VALUES (%s, %s, %s, %s)
@@ -125,7 +140,7 @@ def buy_ticket(request):
         return Response({
             "message": "Ticket comprado com sucesso!",
             "novo_saldo": novo_saldo,
-            "ticket_id": f"TICKET-{int(datetime.timestamp(data_hora_atual))}"
+            "ticket_id": f"TKT-{int(datetime.timestamp(data_hora_atual))}"
         }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
@@ -136,7 +151,7 @@ def buy_ticket(request):
     method='get',
     manual_parameters=[
         openapi.Parameter('matricula', openapi.IN_QUERY, description="Matrícula do usuário", type=openapi.TYPE_STRING, required=True),
-        openapi.Parameter('tipo', openapi.IN_QUERY, description='Tipo de usuário: "student" ou "teacher"', type=openapi.TYPE_STRING, required=True)
+        openapi.Parameter('tipo', openapi.IN_QUERY, description='Tipo de usuário: "student" ou "professor"', type=openapi.TYPE_STRING, required=True)
     ]
 )
 @api_view(['GET'])
@@ -144,8 +159,8 @@ def get_cpf(request):
     """
     Retorna o CPF a partir da matrícula e tipo.
     """
-    matricula = request.GET.get('matricula')
-    tipo = request.GET.get('tipo')
+    matricula = request.query_params.get('matricula')
+    tipo = request.query_params.get('tipo')
 
     if not matricula or not tipo:
         return Response({'error': 'Parâmetros matricula e tipo são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)

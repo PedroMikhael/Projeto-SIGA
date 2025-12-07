@@ -74,9 +74,6 @@ def register_student(request):
 @swagger_auto_schema(method='post', request_body=login_schema)
 @api_view(['POST'])
 def login_user(request):
-    """
-    Realiza login verificando email e senha e retorna Token JWT Real.
-    """
     email = request.data.get('email')
     senha = request.data.get('senha')
 
@@ -89,100 +86,91 @@ def login_user(request):
         if not pessoa:
             return Response({"error": "Credenciais inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
         
-        cpf_encontrado = pessoa[0]
-        nome_encontrado = pessoa[1]
-        email_encontrado = pessoa[2]
+        cpf = pessoa[0]
+        nome = pessoa[1]
+        email = pessoa[2]
 
-        # Verifica se é Aluno
-        cursor.execute("SELECT matricula_aluno, curso FROM ALUNO WHERE fk_cpf = %s", [cpf_encontrado])
-        aluno = cursor.fetchone()
-        
-        if aluno:
-            matricula = aluno[0]
-            curso = aluno[1]
-            tipo_usuario = "student"
-            user_id = matricula
+        # --- PRIMEIRO VERIFICA SE É PROFESSOR ---
+        cursor.execute("SELECT matricula_professor FROM PROFESSOR WHERE fk_cpf = %s", [cpf])
+        professor = cursor.fetchone()
+
+        if professor:
+            tipo = "professor"
+            user_id = professor[0]
+            curso = None
         else:
-            # Verifica se é Professor
-            cursor.execute("SELECT matricula_professor FROM PROFESSOR WHERE fk_cpf = %s", [cpf_encontrado])
-            professor = cursor.fetchone()
-            if professor:
-                tipo_usuario = "professor"
-                user_id = professor[0]
-                curso = None
+            # --- SE NÃO FOR PROFESSOR, VERIFICA SE É ALUNO ---
+            cursor.execute("SELECT matricula_aluno, curso FROM ALUNO WHERE fk_cpf = %s", [cpf])
+            aluno = cursor.fetchone()
+
+            if aluno:
+                tipo = "student"
+                user_id = aluno[0]
+                curso = aluno[1]
             else:
-                # Admin ou Outro
-                tipo_usuario = "admin"
+                tipo = "admin"
                 user_id = 0
                 curso = None
 
-        # --- GERAÇÃO DO TOKEN JWT REAL ---
-        # Como estamos usando SQL nativo e não o User do Django, 
-        # criamos um token manualmente e inserimos os dados nele (Payload)
-        
+        # Gera o token
         refresh = RefreshToken()
-        
-        # Inserimos dados personalizados dentro do token (Payload)
-        # Isso permite recuperar esses dados apenas decodificando o token depois
-        refresh['user_id'] = user_id
-        refresh['type'] = tipo_usuario
-        refresh['nome'] = nome_encontrado
-        refresh['email'] = email_encontrado
+        refresh["user_id"] = user_id
+        refresh["type"] = tipo
+        refresh["nome"] = nome
+        refresh["email"] = email
 
-        # Retorna a resposta que o Frontend espera
         return Response({
-            "access": str(refresh.access_token), # O Token de acesso JWT
-            "refresh": str(refresh),             # O Token para renovar (opcional no front agora)
-            "type": tipo_usuario,
-            "id": user_id,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "type": tipo,
             "matricula": user_id,
-            "nome": nome_encontrado,
-            "email": email_encontrado,
+            "nome": nome,
+            "email": email,
             "curso": curso
-        }, status=status.HTTP_200_OK)
+        })
     
 
 @swagger_auto_schema(method='post', request_body=professor_request_schema)
 @api_view(['POST'])
 def register_professor(request):
     """
-    Rota para cadastro de professor (igual ao aluno, SQL nativo simples).
+    Cadastra um novo professor usando SQL Nativo (mesma estrutura do aluno).
     """
     data = request.data
-    nome = data.get("nome")
-    cpf = data.get("cpf")
-    email = data.get("email")
-    senha = data.get("senha")
-    data_nasc = data.get("data_nascimento")
-    cod_departamento = data.get("departamento")  # deve ser INT correspondente a DEPARTAMENTO.cod_departamento
-
-    if not all([nome, cpf, email, senha, data_nasc, cod_departamento]):
-        return Response({"error": "Todos os campos são obrigatórios"}, status=status.HTTP_400_BAD_REQUEST)
+    year_prefix = datetime.now().year
+    matricula = int(f"{year_prefix}{random.randint(100, 999)}")
 
     try:
         with connection.cursor() as cursor:
-            # Checa se CPF já existe
-            cursor.execute("SELECT 1 FROM PESSOA WHERE cpf = %s", [cpf])
-            if cursor.fetchone():
-                return Response({"error": "CPF já cadastrado"}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Insere na tabela PESSOA
-            cursor.execute("""
+            # 1) INSERE NA TABELA PESSOA
+            sql_pessoa = """
                 INSERT INTO PESSOA (cpf, nome, email, data_nascimento, senha)
                 VALUES (%s, %s, %s, %s, %s)
-            """, [cpf, nome, email, data_nasc, senha])
+            """
+            cursor.execute(sql_pessoa, [
+                data['cpf'],
+                data['nome'],
+                data['email'],
+                data['data_nascimento'],
+                data['senha']
+            ])
 
-            # Gera matrícula para professor
-            matricula_professor = int(f"{datetime.now().year}{random.randint(100,999)}")
-            salario_default = 5000.00  # valor default, você pode mudar
-
-            # Insere na tabela PROFESSOR
-            cursor.execute("""
+            # 2) INSERE NA TABELA PROFESSOR
+            sql_professor = """
                 INSERT INTO PROFESSOR (matricula_professor, salario, fk_cod_departamento, fk_cpf)
                 VALUES (%s, %s, %s, %s)
-            """, [matricula_professor, salario_default, cod_departamento, cpf])
+            """
+            cursor.execute(sql_professor, [
+                matricula,
+                5000.00,                 # salário default igual antes
+                data['departamento'],    # substitui CURSO por DEPARTAMENTO
+                data['cpf']
+            ])
 
-        return Response({"message": "Professor cadastrado com sucesso!", "matricula": matricula_professor}, status=status.HTTP_201_CREATED)
+        return Response({
+            "message": "Professor cadastrado!",
+            "matricula": matricula
+        }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

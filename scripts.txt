@@ -63,6 +63,8 @@ CREATE TABLE DISCIPLINA (
     nome_disciplina VARCHAR(100),
     creditos INT,
     fk_cod_departamento INT,
+    fk_matricula_professor INT,
+    FOREING KEY (fk_matricula_professor) REFERENCES PROFESSOR(matricula_professor),
     FOREIGN KEY (fk_cod_departamento) REFERENCES DEPARTAMENTO(cod_departamento)
 );
 
@@ -116,24 +118,37 @@ CREATE TABLE REGISTRO_USO (
 INSERT INTO PESSOA VALUES ('111.222.333-44', 'Carlos Silva', 'carlos@email.com', '1985-05-20', '123456', 15.00); 
 INSERT INTO PESSOA VALUES ('555.666.777-88', 'Ana Souza', 'ana@email.com', '2002-03-15', 'aluno123', 15.00); 
 INSERT INTO PESSOA VALUES ('999.888.777-66', 'Roberto Lima', 'roberto@email.com', '2001-07-10', 'senhaforte', 15.00);
+INSERT INTO PESSOA VALUES ('222.222.222-22', 'Pedro Souza', 'Pedro@email.com', '2001-07-10', 'senhaforte', 15.00);
 
 -- Departamentos e RU
 INSERT INTO DEPARTAMENTO VALUES (1, 'Computacao');
 INSERT INTO DEPARTAMENTO VALUES (2, 'Matematica');
+INSERT INTO DEPARTAMENTO VALUES (3, 'Fisica');
+INSERT INTO DEPARTAMENTO VALUES (4, 'Engenharia Civil');
+INSERT INTO DEPARTAMENTO VALUES (5, 'Engenharia Eletrica');
+INSERT INTO DEPARTAMENTO VALUES (6, 'Direito');
+INSERT INTO DEPARTAMENTO VALUES (7, 'Administração');
+INSERT INTO DEPARTAMENTO VALUES (8, 'Psicologia');
+INSERT INTO DEPARTAMENTO VALUES (9, 'Biologia');
+INSERT INTO DEPARTAMENTO VALUES (10, 'Quimica');
+
 INSERT INTO RESTAURANTE_UNIVERSITARIO VALUES (1, 'RU Central', 300);
 INSERT INTO CARDAPIO_DIA VALUES (100, 'Strogonoff de Frango', 'Pudim');
 INSERT INTO CARDAPIO_DIA VALUES (101, 'Feijoada', 'Laranja');
 
 -- Professor e Alunos
 INSERT INTO PROFESSOR VALUES (1001, 8500.00, 1, '111.222.333-44');
+INSERT INTO PROFESSOR VALUES (1002, 8500.00, 2, '222.222.222-22');
+
+
 INSERT INTO ALUNO VALUES (202401, 'Engenharia de Software', '555.666.777-88'); -- Ana
 INSERT INTO ALUNO VALUES (202402, 'Ciencia da Computacao', '999.888.777-66');  -- Roberto
 
 -- Disciplinas e Turmas
-INSERT INTO DISCIPLINA VALUES (10, 'Banco de Dados', 4, 1);
-INSERT INTO DISCIPLINA VALUES (20, 'Calculo I', 6, 2);
+INSERT INTO DISCIPLINA VALUES (10, 'Banco de Dados', 4, 1, 1001);
+INSERT INTO DISCIPLINA VALUES (20, 'Calculo I', 6, 2, 1002);
 INSERT INTO TURMA VALUES ('T01', 10, '2024.2', 'Seg/Qua 08:00', 1001, 30);
-INSERT INTO TURMA VALUES ('T02', 10, '2024.2', 'Ter/Qui 10:00', 1001, 30);
+INSERT INTO TURMA VALUES ('T02', 10, '2024.2', 'Ter/Qui 10:00', 1002, 30);
 
 -- Matrículas
 INSERT INTO MATRICULA VALUES (202401, 10, 'T01', 100.0);

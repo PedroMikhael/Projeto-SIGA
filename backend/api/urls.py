@@ -29,5 +29,15 @@ urlpatterns = [
 
     # PROFESSORS
     path('professor/<int:matricula>/update/', views.update_professor, name='update_professor'),
+    path('professor/<int:matricula>/gerar_horario/', views.gerar_horario_uece, name='gerar_horario_uece'),
+    path('professores/<int:matricula>/disciplinas/', views.listar_disciplinas_professor),
+    path('professores/<int:matricula>/criar-disciplina/', views.criar_disciplina_e_turma),
+    path('professores/<int:matricula>/editar-turma/<str:cod_turma>/', views.editar_disciplina_turma),
+    path('professores/<int:matricula>/excluir-turma/<str:cod_turma>/', views.deletar_disciplina_turma),
+    path('professor/<int:matricula>/delete/', views.delete_professor, name='delete_professor'),
+    path('professores/<int:matricula>/reports/', views.get_professor_reports, name='professor_reports'),
 
+    #turas 
+    path('turma/<str:cod_turma>/<int:cod_disciplina>/alunos/', views.listar_alunos_diario),
+    path('turma/<str:cod_turma>/<int:cod_disciplina>/salvar/', views.salvar_notas_diario),
 ]

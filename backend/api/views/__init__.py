@@ -8,4 +8,5 @@ from .enrollment_views import (
 )
 from .grades_views import get_student_grades, get_student_history
 from .restaurant_views import get_user_balance, buy_ticket, get_cpf,get_cpf_by_matricula_tipo
-from .professor_views import update_professor
+from .professor_views import update_professor, listar_disciplinas_professor, gerar_horario_uece, criar_disciplina_e_turma, editar_disciplina_turma, deletar_disciplina_turma, delete_professor,get_professor_reports
+from .class_views import listar_alunos_diario, salvar_notas_diario
