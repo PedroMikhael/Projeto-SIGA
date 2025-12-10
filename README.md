@@ -44,9 +44,9 @@ The frontend application provides two distinct user experiences and uses React f
 
 ### 4.2 Professor Dashboard Features
 
-* [cite_start]**Digital Ledger (Diário de Classe):** Fetches the class roster using multi-join queries[cite: 18, 20]. [cite_start]Allows bulk entry of grades and attendance [cite: 26][cite_start], utilizing the **Mass Manipulation** logic (`salvar_notas_diario`)[cite: 26].
-* **Advanced Reports:** Displays key performance indicators (KPIs) like Total Students and Approval Rate. [cite_start]The data is driven by the complex **HAVING** and **Grouping** SQL queries[cite: 152, 149].
-* [cite_start]**Exceptional Students View:** Uses the **Quantifier (ALL)** route to showcase students with peak academic performance[cite: 35].
+* **Digital Ledger (Diário de Classe):** Fetches the class roster using multi-join queries. Allows bulk entry of grades and attendance , utilizing the **Mass Manipulation** logic (`salvar_notas_diario`)[cite: 26].
+* **Advanced Reports:** Displays key performance indicators (KPIs) like Total Students and Approval Rate. The data is driven by the complex **HAVING** and **Grouping** SQL queries.
+* **Exceptional Students View:** Uses the **Quantifier (ALL)** route to showcase students with peak academic performance.
 
 ## 5. Setup and Run
 
@@ -77,8 +77,9 @@ The frontend application provides two distinct user experiences and uses React f
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| **GET** | `/api/professores/<int:matricula>/reports/` | [cite_start]**HAVING**, Grouping (KPIs) [cite: 152] |
-| **GET** | `/api/professores/<int:matricula>/alunos-excepcionais/` | [cite_start]**Quantifier ALL** (Relational Calculus) [cite: 35] |
-| **POST** | `/api/turma/<str:turma>/<int:disc>/salvar/` | [cite_start]**Mass Manipulation** / Transactional UPSERT [cite: 26] |
-| **GET** | `/api/aluno/<int:matricula>/grades/` | [cite_start]Academic Transcript (Boletim) using Pivoting (**CASE WHEN**) [cite: 83, 84] |
-| **DELETE** | `/api/professor/<int:matricula>/delete/` | [cite_start]**Trigger Activation**, Transactional Cascade Logic [cite: 147] |
+| **GET** | `/api/professores/<int:matricula>/reports/` | **HAVING**, Grouping (KPIs) |
+| **GET** | `/api/professores/<int:matricula>/alunos-excepcionais/` | **Quantifier ALL** (Relational Calculus) |
+| **POST** | `/api/turma/<str:turma>/<int:disc>/salvar/` | **Mass Manipulation** / Transactional UPSERT  |
+| **GET** | `/api/aluno/<int:matricula>/grades/` | **Academic Transcript (Boletim) using Pivoting (**CASE WHEN**)  |
+| **DELETE** | `/api/professor/<int:matricula>/delete/` | **Trigger Activation**, Transactional Cascade Logic  |
+
