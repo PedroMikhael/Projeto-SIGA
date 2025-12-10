@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext'; // Agora usamos o hook!
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,18 +12,18 @@ import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { login, register } = useAuth(); // Importando do Contexto atualizado
+  const { login, register } = useAuth();
   const { toast } = useToast();
-  
+
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [registerType, setRegisterType] = useState<'student' | 'professor'>('student');
-  
+
   const [registerData, setRegisterData] = useState({
     name: '',
     cpf: '',
     email: '',
     password: '',
-    birthDate: '', 
+    birthDate: '',
     course: '',
     department: ''
   });
@@ -45,6 +45,20 @@ const Auth = () => {
     { value: 'Pedagogia', label: 'Pedagogia' }
   ];
 
+  // Lista de departamentos com IDs correspondentes à tabela DEPARTAMENTO
+  const departments = [
+    { value: 1, label: 'Ciência da Computação' },
+    { value: 2, label: 'Matemática' },
+    { value: 3, label: 'Física' },
+    { value: 4, label: 'Engenharia Civil' },
+    { value: 5, label: 'Engenharia Elétrica' },
+    { value: 6, label: 'Direito' },
+    { value: 7, label: 'Administração' },
+    { value: 8, label: 'Psicologia' },
+    { value: 9, label: 'Biologia' },
+    { value: 10, label: 'Química' },
+  ];
+
   const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, '');
     const limited = numbers.substring(0, 11);
@@ -59,7 +73,6 @@ const Auth = () => {
     setRegisterData({ ...registerData, cpf: formatted });
   };
 
-  // Helper simples para extrair mensagem de erro do JSON
   const extractErrorMessage = (errorStr: string) => {
     try {
         const parsed = JSON.parse(errorStr);
@@ -70,62 +83,68 @@ const Auth = () => {
   };
 
   const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  const success = await login(loginData.email, loginData.password);
-
-  if (success) {
-    toast({ title: "Login realizado!", description: "Indo para matrícula..." });
-    window.location.href = "/dashboard/enrollment";
-  } else {
-    toast({ title: "Erro", description: "Login falhou", variant: "destructive" });
-  }
-};
+    e.preventDefault();
+    const success = await login(loginData.email, loginData.password);
+    if (success) {
+      toast({ title: "Login realizado!", description: "Indo para matrícula..." });
+      window.location.href = "/dashboard/enrollment";
+    } else {
+      toast({ title: "Erro", description: "Login falhou", variant: "destructive" });
+    }
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
-     e.preventDefault();
-    
+    e.preventDefault();
+
     if (!registerData.name || !registerData.cpf || !registerData.birthDate) {
-        toast({ title: "Erro", description: "Preencha todos os campos", variant: "destructive" });
-        return;
+      toast({ title: "Erro", description: "Preencha todos os campos", variant: "destructive" });
+      return;
     }
 
     if (registerType === 'student' && !registerData.course) {
-        toast({ title: "Erro", description: "Selecione um curso", variant: "destructive" });
-        return;
+      toast({ title: "Erro", description: "Selecione um curso", variant: "destructive" });
+      return;
     }
 
-    // Prepara os dados para o formato que o Backend Python espera
+    if (registerType === 'professor' && !registerData.department) {
+      toast({ title: "Erro", description: "Selecione um departamento", variant: "destructive" });
+      return;
+    }
+
     const cleanCPF = registerData.cpf.replace(/\D/g, '');
 
-    const userData = {
-        nome: registerData.name,
-        cpf: cleanCPF,
-        email: registerData.email,
-        senha: registerData.password, // Manda como 'senha'
-        data_nascimento: registerData.birthDate,
-        curso: registerData.course
+    const userData = registerType === 'student' ? {
+      nome: registerData.name,
+      cpf: cleanCPF,
+      email: registerData.email,
+      senha: registerData.password,
+      data_nascimento: registerData.birthDate,
+      curso: registerData.course
+    } : {
+      nome: registerData.name,
+      cpf: cleanCPF,
+      email: registerData.email,
+      senha: registerData.password,
+      data_nascimento: registerData.birthDate,
+      departamento: Number(registerData.department) // aqui passamos o int
     };
-    
+
     console.log("Enviando via useAuth:", userData);
 
     try {
-        const success = await register(userData);
-        
-        if (success) {
-          toast({
-            title: "Cadastro realizado!",
-            description: "Faça login para continuar.",
-          });
-          
-          setRegisterData({ name: '', cpf: '', email: '', password: '', birthDate: '', course: '', department: '' });
-          const loginTabBtn = document.querySelector('[data-value="login"]') as HTMLElement;
-          if (loginTabBtn) loginTabBtn.click();
-        } 
+      const success = await register(userData, registerType);
+      if (success) {
+        toast({
+          title: "Cadastro realizado!",
+          description: "Faça login para continuar.",
+        });
+        setRegisterData({ name: '', cpf: '', email: '', password: '', birthDate: '', course: '', department: '' });
+        const loginTabBtn = document.querySelector('[data-value="login"]') as HTMLElement;
+        if (loginTabBtn) loginTabBtn.click();
+      }
     } catch (error: any) {
-        // Captura o erro lançado pelo context
-        const msg = extractErrorMessage(error.message);
-        toast({ title: "Erro ao cadastrar", description: msg, variant: "destructive" });
+      const msg = extractErrorMessage(error.message);
+      toast({ title: "Erro ao cadastrar", description: msg, variant: "destructive" });
     }
   };
 
@@ -145,7 +164,7 @@ const Auth = () => {
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="register">Cadastro</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
@@ -175,7 +194,7 @@ const Auth = () => {
                 </Button>
               </form>
             </TabsContent>
-            
+
             <TabsContent value="register">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-2 mb-4">
@@ -192,11 +211,10 @@ const Auth = () => {
                     type="button"
                     variant={registerType === 'professor' ? 'default' : 'outline'}
                     onClick={() => setRegisterType('professor')}
-                    disabled={true} 
-                    className="w-full opacity-50 cursor-not-allowed"
+                    className="w-full"
                   >
                     <BookOpen className="w-4 h-4 mr-2" />
-                    Professor (Em breve)
+                    Professor
                   </Button>
                 </div>
 
@@ -211,31 +229,31 @@ const Auth = () => {
                       required
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                         <Label htmlFor="register-cpf">CPF</Label>
                         <Input
-                        id="register-cpf"
-                        placeholder="000.000.000-00"
-                        value={registerData.cpf}
-                        onChange={handleCPFChange} 
-                        required
-                        maxLength={14} 
+                          id="register-cpf"
+                          placeholder="000.000.000-00"
+                          value={registerData.cpf}
+                          onChange={handleCPFChange} 
+                          required
+                          maxLength={14} 
                         />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="register-birth">Data Nasc.</Label>
                         <Input
-                        id="register-birth"
-                        type="date"
-                        value={registerData.birthDate}
-                        onChange={(e) => setRegisterData({ ...registerData, birthDate: e.target.value })}
-                        required
+                          id="register-birth"
+                          type="date"
+                          value={registerData.birthDate}
+                          onChange={(e) => setRegisterData({ ...registerData, birthDate: e.target.value })}
+                          required
                         />
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="register-email">Email</Label>
                     <Input
@@ -247,7 +265,7 @@ const Auth = () => {
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="register-password">Senha</Label>
                     <Input
@@ -274,6 +292,27 @@ const Auth = () => {
                           {courses.map(course => (
                             <SelectItem key={course.value} value={course.value}>
                               {course.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {registerType === 'professor' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="department">Departamento</Label>
+                      <Select
+                        value={registerData.department}
+                        onValueChange={(value) => setRegisterData({ ...registerData, department: value })}
+                      >
+                        <SelectTrigger id="department">
+                          <SelectValue placeholder="Selecione o departamento..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departments.map(dep => (
+                            <SelectItem key={dep.value} value={dep.value.toString()}>
+                              {dep.label}
                             </SelectItem>
                           ))}
                         </SelectContent>

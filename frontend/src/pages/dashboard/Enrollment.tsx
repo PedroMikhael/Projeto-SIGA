@@ -2,204 +2,185 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Users, Calendar, BookOpen, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Search, BookOpen, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-interface ClassData {
-  cod_turma: number;
-  capacidade: number;
-  inscritos: number;
-  vagas_restantes: number;
-  disciplina: {
-    cod_disciplina: number;
-    nome_disciplina: string;
-    creditos: number;
-  };
-}
-
-interface DisciplineData {
+interface Discipline {
   cod_disciplina: number;
   nome_disciplina: string;
   creditos: number;
-  fk_cod_departamento: number;
+  nome_departamento: string;
+  capacidade: number;
+  ocupadas: number;
 }
 
 const Enrollment = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [classes, setClasses] = useState<ClassData[]>([]);
-  const [allDisciplines, setAllDisciplines] = useState<DisciplineData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [enrollingId, setEnrollingId] = useState<number | null>(null);
+  const [caseInsensitive, setCaseInsensitive] = useState(true);
+  const [disciplines, setDisciplines] = useState<Discipline[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 🔵 1) BUSCA TODAS AS DISCIPLINAS
-  const fetchAllDisciplines = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("http://127.0.0.1:8000/disciplines/all/", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" }
-      });
+  // 🔥 Agora pega direto do LocalStorage
+  const storedUser = localStorage.getItem("user_data"); // ⚠️ mudou de "user" para "user_data"
+  const user = storedUser ? JSON.parse(storedUser) : null;
+  const matriculaAluno = user?.matricula; // ✅ aqui você pega a matrícula  
 
-      if (response.ok) {
-        const data = await response.json();
-        setAllDisciplines(data);
+  useEffect(() => {
+    const fetchDisciplines = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:8000/api/disciplines/all/');
+        const data = await res.json();
+        setDisciplines(data);
+      } catch (err) {
+        console.error('Erro API:', err);
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  // 🔵 2) BUSCA TURMAS DISPONÍVEIS
-  const fetchClasses = async (query: string) => {
-    if (!query.trim()) {
-      setClasses([]);
+    fetchDisciplines();
+  }, []);
+
+  const filtered = disciplines.filter((d) => {
+    if (!searchTerm) return true;
+    const term = caseInsensitive ? searchTerm.toLowerCase() : searchTerm;
+    const name = caseInsensitive ? d.nome_disciplina.toLowerCase() : d.nome_disciplina;
+    return name.includes(term);
+  });
+
+  // 📌 Função que faz matrícula + remove disciplina da tela
+  const handleEnroll = async (disc: Discipline) => {
+    if (!matriculaAluno) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível identificar a matrícula do aluno.",
+        variant: "destructive",
+      });
       return;
     }
 
-    setLoading(true);
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/classes/available/?search=${query}`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        }
+      const res = await fetch("http://127.0.0.1:8000/api/classes/enroll/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matricula_aluno: matriculaAluno,
+          cod_disciplina: disc.cod_disciplina
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast({
+          title: "Erro ao matricular",
+          description: data.error || "Tente novamente mais tarde",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Matrícula realizada!",
+        description: `Você se matriculou em ${disc.nome_disciplina}`,
+      });
+
+      // ❗ Remove a disciplina da lista
+      setDisciplines(prev =>
+        prev.filter(d => d.cod_disciplina !== disc.cod_disciplina)
       );
 
-      if (response.ok) {
-        const data = await response.json();
-        const safe = Array.isArray(data) ? data : [];
-        setClasses(safe);
-      }
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Erro inesperado",
+        description: "Não foi possível realizar a matrícula.",
+        variant: "destructive",
+      });
     }
   };
 
-  // 🔵 3) Carregar disciplinas ao abrir
-  useEffect(() => {
-    fetchAllDisciplines();
-  }, []);
-
-  // 🔵 4) Buscar turmas quando digitar
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchClasses(searchTerm);
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  const handleEnroll = async (cls: ClassData) => {
-    setEnrollingId(cls.cod_turma);
-
-    const storedUser = localStorage.getItem('user_data');
-    const userData = storedUser ? JSON.parse(storedUser) : null;
-    const studentId = userData?.id || 1;
-
-    const payload = {
-      matricula_aluno: studentId,
-      cod_turma: cls.cod_turma,
-      cod_disciplina: cls.disciplina.cod_disciplina
-    };
-
-    try {
-      const response = await fetch("http://127.0.0.1:8000/classes/enroll/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Matrícula realizada!",
-          description: `Você foi matriculado em ${cls.disciplina.nome_disciplina}`
-        });
-
-        fetchClasses(searchTerm);
-      }
-    } finally {
-      setEnrollingId(null);
-    }
+  const getColor = (ocupadas: number, capacidade: number) => {
+    const percent = (ocupadas / capacidade) * 100;
+    if (percent >= 90) return "text-red-600";
+    if (percent >= 70) return "text-yellow-600";
+    return "text-green-600";
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-3xl font-bold">Matrícula Online</h1>
-        <p className="text-muted-foreground mt-1">
-          Busque e inscreva-se nas disciplinas.
-        </p>
+        <p className="text-muted-foreground mt-1">Escolha sua disciplina</p>
       </div>
 
-      {/* 🔍 Campo de busca */}
+      {/* Busca */}
       <Card>
         <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por disciplina..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-12 text-lg"
-            />
-            {loading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <Loader2 className="w-5 h-5 animate-spin text-primary" />
-              </div>
-            )}
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                placeholder="Buscar disciplina..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-12 text-lg"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 📚 Lista */}
+      {loading && <p className="text-center py-10 text-muted-foreground">Carregando disciplinas...</p>}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {classes.map((cls) => (
-          <Card key={cls.cod_turma}>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {cls.disciplina.nome_disciplina}
-              </CardTitle>
-              <CardDescription>
-                Departamento {cls.disciplina.cod_disciplina}
-              </CardDescription>
-            </CardHeader>
+        {filtered.map((disc) => {
+          const vagas = disc.capacidade - disc.ocupadas;
 
-            <CardContent className="space-y-3">
-              <div className="text-sm">
-                <div className="flex items-center gap-2">
+          return (
+            <Card key={disc.cod_disciplina} className="shadow-card hover:shadow-hover transition-all">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
                   <BookOpen className="w-4 h-4" />
-                  Créditos: {cls.disciplina.creditos}
+                  {disc.nome_disciplina}
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  {disc.nome_departamento}
+                </CardDescription>
+                <Badge variant="outline">{disc.creditos} créditos</Badge>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <span className={getColor(disc.ocupadas, disc.capacidade)}>
+                    {disc.ocupadas} / {disc.capacidade} vagas (restam {vagas})
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  {cls.inscritos} / {cls.capacidade}
+                <div className="w-full bg-muted h-2 rounded-full">
+                  <div
+                    className="bg-gradient-primary h-2 rounded-full"
+                    style={{
+                      width: `${(disc.ocupadas / disc.capacidade) * 100}%`,
+                    }}
+                  ></div>
                 </div>
-              </div>
 
-              <Button
-                className="w-full"
-                disabled={enrollingId === cls.cod_turma}
-                onClick={() => handleEnroll(cls)}
-              >
-                {enrollingId === cls.cod_turma ? (
-                  <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                ) : "Inscrever-se"}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+                <Button
+                  className="w-full"
+                  onClick={() => handleEnroll(disc)}
+                  disabled={disc.ocupadas >= disc.capacidade}
+                >
+                  {disc.ocupadas >= disc.capacidade ? "Turma cheia" : "Matricular"}
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
-
-      {!loading && classes.length === 0 && searchTerm.length > 0 && (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            Nenhuma turma encontrada.
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };

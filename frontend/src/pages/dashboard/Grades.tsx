@@ -27,33 +27,35 @@ const Grades = () => {
     }
   };
 
-  // 📌 Calcula média geral
   const overallAverage = grades.length
     ? (grades.reduce((sum, g) => sum + g.average, 0) / grades.length).toFixed(2)
     : "0.00";
 
-  // 📌 Calcula frequência geral
   const overallAttendance = grades.length
     ? (grades.reduce((sum, g) => sum + g.attendance, 0) / grades.length).toFixed(1)
     : "0.0";
 
-  // 🔵 BUSCA NOTAS DO ALUNO
   const fetchGrades = async () => {
     try {
       const stored = localStorage.getItem("user_data");
       const user = stored ? JSON.parse(stored) : null;
 
-      if (!user || !user.id) {
-        console.error("Usuário não encontrado no localStorage");
+      if (!user || !user.matricula) {
+        console.error("Matrícula do aluno não encontrada no localStorage");
+        setLoading(false);
         return;
       }
 
-      const response = await fetch(`http://127.0.0.1:8000/students/${user.id}/grades/`);
+      const response = await fetch(`http://127.0.0.1:8000/api/students/${user.matricula}/grades/`);
 
       if (response.ok) {
         const data = await response.json();
         setGrades(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Erro ao buscar notas:", response.statusText);
       }
+    } catch (error) {
+      console.error("Erro inesperado ao buscar notas:", error);
     } finally {
       setLoading(false);
     }
@@ -70,7 +72,6 @@ const Grades = () => {
         <p className="text-muted-foreground mt-1">Acompanhe suas notas e frequência</p>
       </div>
 
-      {/* Cards superiores */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
@@ -100,7 +101,6 @@ const Grades = () => {
         </Card>
       </div>
 
-      {/* Tabela do boletim */}
       <Card>
         <CardHeader>
           <CardTitle>Disciplinas do Semestre</CardTitle>

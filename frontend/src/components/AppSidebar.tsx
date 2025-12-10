@@ -1,4 +1,13 @@
-import { Home, BookOpen, FileText, Calendar, Settings, Utensils, BarChart3 } from 'lucide-react';
+import { 
+  Home, 
+  BookOpen, 
+  FileText, 
+  Calendar, 
+  Settings, 
+  Utensils, 
+  BarChart3,
+  LogOut // Importando o ícone de logout
+} from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -13,7 +22,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
+// Removemos o Button padrão daqui, pois faremos um customizado
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export function AppSidebar() {
@@ -36,17 +45,23 @@ export function AppSidebar() {
 
   const adminItems = [
     { title: 'Configurações', url: '/dashboard/admin', icon: Settings },
-    { title: 'Relatórios', url: '/dashboard/reports', icon: BarChart3 },
+    ...(user?.type !== 'student' 
+      ? [{ title: 'Relatórios', url: '/dashboard/reports', icon: BarChart3 }] 
+      : []
+    ),
   ];
 
   const menuItems = user?.type === 'student' ? studentItems : professorItems;
+
+  // Pega a inicial do nome ou email
+  const userInitial = user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U';
 
   return (
     <Sidebar className="border-r border-sidebar-border">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-            <span className="text-lg font-bold text-primary-foreground">S</span>
+          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20">
+            <span className="text-lg font-bold text-primary">S</span>
           </div>
           <div>
             <h2 className="font-bold text-sidebar-foreground">SIGA</h2>
@@ -106,26 +121,47 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 mb-3">
-          <Avatar>
-            <AvatarFallback className="rounded-lg">
-              {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm text-sidebar-foreground truncate">{user?.name}</p>
-            <p className="text-xs text-sidebar-foreground/70 truncate">{user?.email}</p>
+      {/* --- INICIO DAS MUDANÇAS NO FOOTER --- */}
+      <SidebarFooter className="p-4 border-t border-sidebar-border bg-sidebar-accent/5">
+        <div className="flex flex-col gap-4">
+          
+          {/* Informações do Usuário */}
+          <div className="flex items-start gap-3">
+            {/* MUDANÇA AQUI: Usando as cores do tema (primary) */}
+            <Avatar className="h-10 w-10 border border-sidebar-border shadow-sm">
+              <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+                {userInitial}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div className="flex-1 min-w-0 space-y-1">
+              <p className="font-semibold text-sm text-sidebar-foreground truncate leading-none mt-1">
+                {user?.name}
+              </p>
+              <p className="text-xs text-sidebar-foreground/60 truncate leading-none">
+                {user?.email}
+              </p>
+              
+              {/* Matrícula */}
+              <div className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-sidebar-accent border border-sidebar-border/50 mt-1.5">
+                <span className="text-[10px] font-medium text-sidebar-foreground/80">
+                  Mat: {user?.matricula || "2023..."}
+                </span>
+              </div>
+            </div>
           </div>
+
+          {/* Botão de Sair (Danger) */}
+          <button
+            onClick={logout}
+            className="group relative w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 text-sm font-medium rounded-md border border-red-100 transition-all duration-200 hover:bg-red-600 hover:text-white hover:shadow-sm active:scale-95 outline-none focus:ring-2 focus:ring-red-200"
+          >
+            <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            <span>Sair da Conta</span>
+          </button>
         </div>
-        <Button
-          variant="outline"
-          className="w-full border-sidebar-accent-foreground/20"
-          onClick={logout}
-        >
-          Sair
-        </Button>
       </SidebarFooter>
+      {/* --- FIM DAS MUDANÇAS NO FOOTER --- */}
     </Sidebar>
   );
 }
